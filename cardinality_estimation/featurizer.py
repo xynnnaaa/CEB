@@ -227,12 +227,12 @@ GROUPBY_TEMPLATE = "SELECT {COLS}, COUNT(*) FROM {FROM_CLAUSE} GROUP BY {COLS}"
 COUNT_SIZE_TEMPLATE = "SELECT COUNT(*) FROM {FROM_CLAUSE}"
 
 SELECT_ALL_COL_TEMPLATE = "SELECT {COL} FROM {TABLE} WHERE {COL} IS NOT NULL"
-# ALIAS_FORMAT = "{TABLE} AS {ALIAS}"
+ALIAS_FORMAT = "{TABLE} AS {ALIAS}"
 MIN_TEMPLATE = "SELECT {COL} FROM {TABLE} WHERE {COL} IS NOT NULL ORDER BY {COL} ASC LIMIT 1"
 MAX_TEMPLATE = "SELECT {COL} FROM {TABLE} WHERE {COL} IS NOT NULL ORDER BY {COL} DESC LIMIT 1"
 
 # SELECT_ALL_COL_TEMPLATE = """ SELECT "{COL}" FROM "{TABLE}" WHERE "{COL}" IS NOT NULL """
-ALIAS_FORMAT = """ "{TABLE}" AS {ALIAS} """
+# ALIAS_FORMAT = """ "{TABLE}" AS {ALIAS} """
 # MIN_TEMPLATE = """ SELECT {COL} FROM "{TABLE}" WHERE "{COL}" IS NOT NULL ORDER BY {COL} ASC LIMIT 1 """
 # MAX_TEMPLATE = """ SELECT "{COL}" FROM "{TABLE}" WHERE "{COL}" IS NOT NULL ORDER BY "{COL}" DESC LIMIT 1 """
 
@@ -512,6 +512,7 @@ class Featurizer():
                 if real_name == "synth_primary":
                     continue
 
+                '''
                 if self.sample_bitmap and sbitmaps is not None:
                     if real_name not in self.seen_bitmaps:
                         self.seen_bitmaps[real_name] = set()
@@ -530,6 +531,7 @@ class Featurizer():
                     bitmap = sb[self.sample_bitmap_key]
                     for val in bitmap:
                         self.seen_bitmaps[real_name].add(val)
+                '''
 
                 for ci, col in enumerate(info["pred_cols"]):
                     # cur_columns.append(col)
@@ -777,9 +779,9 @@ class Featurizer():
         '''
         '''
         try:
-            con = pg.connect(user=self.user, host=self.db_host, port=self.port,             password=self.pwd, dbname=self.db_name)
+            con = pg.connect(user=self.user, host=self.db_host, port=self.port, password=self.pwd, dbname=self.db_name)
         except:
-            con = pg.connect(user=self.user, port=self.port, password=self.pwd, dbname=self.db_name)
+            con = pg.connect(user=self.user, host=self.db_host, port=self.port, password=self.pwd, dbname=self.db_name)
 
 
         cursor = con.cursor()
@@ -1205,8 +1207,8 @@ class Featurizer():
             # bitmap_tables = []
             self.sample_bitmap_key = "sb" + str(self.sample_bitmap_num)
             if self.featurization_type == "set":
-                self.table_features_len = len(self.tables) + self.sample_bitmap_num
-                self.max_table_feature_len = len(self.tables) + self.sample_bitmap_num
+                self.table_features_len = len(self.tables) + 768
+                self.max_table_feature_len = len(self.tables) + 768
             else:
                 self.table_features_len = len(self.tables) + len(self.tables)*self.sample_bitmap_buckets
                 self.max_table_feature_len = len(self.tables) + \
@@ -2089,40 +2091,60 @@ class Featurizer():
 
                 # print(bitmaps)
                 # pdb.set_trace()
-                if self.sample_bitmap and bitmaps is not None \
-                        and (alias,) in bitmaps:
-                    # assert bitmaps is not None
-                    startidx = len(self.table_featurizer)
-                    # if alias not in bitmaps:
-                        # continue
+
+                # if self.sample_bitmap and bitmaps is not None \
+                #         and (alias,) in bitmaps:
+                #     # assert bitmaps is not None
+                #     startidx = len(self.table_featurizer)
+                #     # if alias not in bitmaps:
+                #         # continue
+                #     sb = bitmaps[(alias,)]
+
+                #     if self.sample_bitmap_key in sb:
+                #         bitmap = sb[self.sample_bitmap_key]
+                #         if self.feat_onlyseen_preds:
+                #             if table not in self.seen_bitmaps:
+                #                 # print(table, " not in seen bitmaps")
+                #                 # pdb.set_trace()
+                #                 alltablefeats.append(tfeats)
+                #                 continue
+                #             train_seenvals = self.seen_bitmaps[table]
+
+                #         # print("Bitmap for {} is: ".format(alias))
+                #         # print(bitmap)
+                #         # pdb.set_trace()
+                #         for val in bitmap:
+                #             if self.feat_onlyseen_preds:
+                #                 if val not in train_seenvals:
+                #                     continue
+                #                 bitmapidx = val % self.sample_bitmap_buckets
+                #                 # bitmapidx = deterministic_hash(val) % self.sample_bitmap_buckets
+                #                 tfeats[startidx+bitmapidx] = 1.0
+                #             else:
+                #                 bitmapidx = val % self.sample_bitmap_buckets
+                #                 # bitmapidx = deterministic_hash(val) % self.sample_bitmap_buckets
+                #                 tfeats[startidx+bitmapidx] = 1.0
+                #     else:
+                #         pass
+
+                if self.sample_bitmap and bitmaps is not None and (alias,) in bitmaps:
                     sb = bitmaps[(alias,)]
-
                     if self.sample_bitmap_key in sb:
-                        bitmap = sb[self.sample_bitmap_key]
-                        if self.feat_onlyseen_preds:
-                            if table not in self.seen_bitmaps:
-                                # print(table, " not in seen bitmaps")
-                                # pdb.set_trace()
-                                alltablefeats.append(tfeats)
-                                continue
-                            train_seenvals = self.seen_bitmaps[table]
+                        # 1. 获取Embedding，它现在是一个PyTorch张量
+                        embedding_tensor = sb[self.sample_bitmap_key]
+                        
+                        # 2. 【关键】将PyTorch张量转换为NumPy数组，以便后续操作
+                        embedding_vector = embedding_tensor.cpu().numpy()
 
-                        # print("Bitmap for {} is: ".format(alias))
-                        # print(bitmap)
-                        # pdb.set_trace()
-                        for val in bitmap:
-                            if self.feat_onlyseen_preds:
-                                if val not in train_seenvals:
-                                    continue
-                                bitmapidx = val % self.sample_bitmap_buckets
-                                # bitmapidx = deterministic_hash(val) % self.sample_bitmap_buckets
-                                tfeats[startidx+bitmapidx] = 1.0
-                            else:
-                                bitmapidx = val % self.sample_bitmap_buckets
-                                # bitmapidx = deterministic_hash(val) % self.sample_bitmap_buckets
-                                tfeats[startidx+bitmapidx] = 1.0
-                    else:
-                        pass
+                        # 3. 定义拼接的起始和结束位置
+                        startidx = len(self.table_featurizer)
+                        endidx = startidx + len(embedding_vector)
+                        
+                        if endidx <= self.table_features_len:
+                            # 4. 将转换后的NumPy向量拼接到tfeats上
+                            tfeats[startidx:endidx] = embedding_vector
+                        else:
+                            print(f"警告: Embedding维度({len(embedding_vector)})超出预留空间!")
 
                 alltablefeats.append(tfeats)
 
@@ -3015,10 +3037,10 @@ class Featurizer():
                 print(table)
                 pdb.set_trace()
 
-            table = '"' + table + '"'
+            # table = '"' + table + '"'
 
-            csplit_idx = column.find(".")
-            column = column[0:csplit_idx+1] + '"' + column[csplit_idx+1:]+'"'
+            # csplit_idx = column.find(".")
+            # column = column[0:csplit_idx+1] + '"' + column[csplit_idx+1:]+'"'
 
             min_query = MIN_TEMPLATE.format(TABLE = table,
                                             COL   = column)
