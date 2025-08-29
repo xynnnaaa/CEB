@@ -1,6 +1,5 @@
 %YAML 1.2
 ---
-## Train on JOBLight; Eval on JOB,CEB;
 
 eval:
   use_wandb : 0
@@ -74,6 +73,7 @@ featurizer:
   sample_bitmap_buckets : 1000
   bitmap_onehotmask : 1
 
+
   feat_separate_alias : 0 # treat aliases as separate tables
   feat_separate_like_ests : 0
 
@@ -116,7 +116,7 @@ model:
   normalize_flow_loss : 1
 
   # important training / optimization flags
-  max_epochs : 500
+  max_epochs : 100
   eval_epoch : 2 # how often to evaluate on eval_fns during training
   eval_fns : "qerr,ppc,plancost" # logging things during training
   lr : 0.0001

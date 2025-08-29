@@ -1051,7 +1051,7 @@ class Featurizer():
             embedding_fn = None,
             embedding_pooling = None,
             num_tables_feature=False,
-            featurization_type="combined",
+            featurization_type="set",
             card_type = "subplan",
             clamp_timeouts = 1,
             max_discrete_featurizing_buckets=10,
@@ -2130,18 +2130,14 @@ class Featurizer():
                 if self.sample_bitmap and bitmaps is not None and (alias,) in bitmaps:
                     sb = bitmaps[(alias,)]
                     if self.sample_bitmap_key in sb:
-                        # 1. 获取Embedding，它现在是一个PyTorch张量
                         embedding_tensor = sb[self.sample_bitmap_key]
                         
-                        # 2. 【关键】将PyTorch张量转换为NumPy数组，以便后续操作
                         embedding_vector = embedding_tensor.cpu().numpy()
 
-                        # 3. 定义拼接的起始和结束位置
                         startidx = len(self.table_featurizer)
                         endidx = startidx + len(embedding_vector)
                         
                         if endidx <= self.table_features_len:
-                            # 4. 将转换后的NumPy向量拼接到tfeats上
                             tfeats[startidx:endidx] = embedding_vector
                         else:
                             print(f"警告: Embedding维度({len(embedding_vector)})超出预留空间!")
