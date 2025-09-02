@@ -384,7 +384,7 @@ class NN(CardinalityEstimationAlg):
                     curerrs[str(efunc)+"-"+st+"-90p"] = round(p90,4)
                     curerrs[str(efunc)+"-"+st+"-99p"] = round(p99,4)
 
-        if self.early_stopping == 2:
+        if self.early_stopping == 2 or self.early_stopping == 3:
             self.all_errs.append(curerrs)
 
         print("Epoch ", self.epoch, curerrs)
@@ -466,6 +466,7 @@ class NN(CardinalityEstimationAlg):
 
         self.all_errs = []
         self.best_model_epoch = -1
+        self.best_ppc_rel = float("inf")
         self.model_weights = []
 
         self.true_costs = {}
@@ -632,54 +633,64 @@ class NN(CardinalityEstimationAlg):
 
         # pdb.set_trace()
 
+        print("--- Evaluating initial random model (before training) ---")
+        self.epoch = -1
+        self.periodic_eval()
+
         for self.epoch in range(0,total_epochs):
-            if self.epoch % self.eval_epoch == 0:
-                self.periodic_eval()
 
             self.train_one_epoch()
 
             self.model_weights.append(copy.deepcopy(self.net.state_dict()))
 
-            # TODO: needs to decide if we should stop training
-            if self.early_stopping == 1:
-                if "val" in self.eval_ds:
-                    ds = self.eval_ds["val"]
-                else:
-                    ds = self.eval_ds["train"]
-
-                preds, ys = self._eval_ds(ds)
-                losses = self.loss_func(torch.from_numpy(preds), torch.from_numpy(ys))
-                eploss = torch.mean(losses).item()
-                if len(eplosses) >= 1:
-                    pct = 100* ((eploss-eplosses[-1])/eplosses[-1])
-                    pct_chngs.append(pct)
-
-                eplosses.append(eploss)
-                if len(pct_chngs) > 5:
-                    trailing_chng = np.mean(pct_chngs[-5:-1])
-                    if trailing_chng > -0.1:
-                        print("Going to exit training at epoch: ", self.epoch)
-                        break
-
-            elif self.early_stopping == 2:
+            if self.epoch % self.eval_epoch == 0:
                 self.periodic_eval()
-                ppc_rel = self.all_errs[-1]['PostgresPlanCost-C-Relative-val']
 
-                if len(eplosses) >= 1:
-                    pct = 100* ((ppc_rel-eplosses[-1])/eplosses[-1])
-                    pct_chngs.append(pct)
+                if self.early_stopping == 1:
+                    if "val" in self.eval_ds:
+                        ds = self.eval_ds["val"]
+                    else:
+                        ds = self.eval_ds["train"]
 
-                eplosses.append(ppc_rel)
+                    preds, ys = self._eval_ds(ds)
+                    losses = self.loss_func(torch.from_numpy(preds), torch.from_numpy(ys))
+                    eploss = torch.mean(losses).item()
+                    if len(eplosses) >= 1:
+                        pct = 100* ((eploss-eplosses[-1])/eplosses[-1])
+                        pct_chngs.append(pct)
 
-                if self.epoch > 2 and pct_chngs[-1] > 1:
-                    print(eplosses)
-                    print(pct_chngs)
-                    # print(eplosses[-5:-1])
-                    # print(pct_chngs[-5:-1])
-                    # revert to model before this epoch's training
-                    print("Going to exit training at epoch: ", self.epoch)
-                    self.best_model_epoch = self.epoch-1
-                    break
+                    eplosses.append(eploss)
+                    if len(pct_chngs) > 5:
+                        trailing_chng = np.mean(pct_chngs[-5:-1])
+                        if trailing_chng > -0.1:
+                            print("Going to exit training at epoch: ", self.epoch)
+                            break
+
+                elif self.early_stopping == 2:
+                    ppc_rel = self.all_errs[-1]['PostgresPlanCost-C-Relative-val']
+
+                    if len(eplosses) >= 1:
+                        pct = 100* ((ppc_rel-eplosses[-1])/eplosses[-1])
+                        pct_chngs.append(pct)
+
+                    eplosses.append(ppc_rel)
+
+                    if self.epoch > 2 and pct_chngs[-1] > 1:
+                        print(eplosses)
+                        print(pct_chngs)
+                        # print(eplosses[-5:-1])
+                        # print(pct_chngs[-5:-1])
+                        # revert to model before this epoch's training
+                        print("Going to exit training at epoch: ", self.epoch)
+                        self.best_model_epoch = self.epoch-self.eval_epoch
+                        break
+                
+                elif self.early_stopping == 3:
+                    ppc_rel = self.all_errs[-1]['PostgresPlanCost-C-Relative-val']
+                    if ppc_rel < self.best_ppc_rel:
+                        self.best_ppc_rel = ppc_rel
+                        self.best_model_epoch = self.epoch
+                        print(f"  ---> New best model found at epoch {self.epoch} with val PPC_rel: {self.best_ppc_rel:.4f}")
 
         # self.periodic_eval()
 
