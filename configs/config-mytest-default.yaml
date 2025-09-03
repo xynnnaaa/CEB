@@ -2,16 +2,16 @@
 ---
 
 eval:
-  use_wandb : 0
-  save_test_preds : 1
+  use_wandb : 1
+  save_test_preds : 0
   save_pdf_plans : 0
 
   # for parallelizing computing plan costs
   num_processes : 10
 
 data:
-    query_dir: "./my_queries_all/train"
-    eval_query_dir: "./my_queries_all/eval"
+    query_dir: "./my_queries_all/half_ceb_full"
+    eval_query_dir: ""
     bitmap_dir: "./my_queries_all/default_bitmaps/"
 
     # query_dir: "./queries/ceb-imdb"
@@ -24,7 +24,7 @@ data:
 
     # query, custom, templates
     train_test_split_kind : "query"
-    test_size : 0.0
+    test_size : 0.2
     val_size : 0.2
     # only used if split == custom
     train_tmps : null
@@ -115,9 +115,9 @@ model:
   normalize_flow_loss : 1
 
   # important training / optimization flags
-  max_epochs : 100
-  eval_epoch : 2 # how often to evaluate on eval_fns during training
-  eval_fns : "qerr,ppc,plancost" # logging things during training
+  max_epochs : 2000
+  eval_epoch : 6 # how often to evaluate on eval_fns during training
+  eval_fns : "qerr,ppc" # logging things during training
   lr : 0.0001
   num_hidden_layers : 2
   hidden_layer_size : 128
@@ -133,7 +133,7 @@ model:
   weight_decay : 0.0
   optimizer_name : "adamw"
   clip_gradient : 20.0
-  early_stopping : 0
+  early_stopping : 3
   inp_dropout : 0.0
   hl_dropout : 0.0
   comb_dropout : 0.0
