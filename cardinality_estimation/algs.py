@@ -467,6 +467,7 @@ class NN(CardinalityEstimationAlg):
         self.all_errs = []
         self.best_model_epoch = -1
         self.best_ppc_rel = float("inf")
+        self.best_err_mean = float("inf")
         self.model_weights = []
 
         self.true_costs = {}
@@ -691,6 +692,13 @@ class NN(CardinalityEstimationAlg):
                         self.best_ppc_rel = ppc_rel
                         self.best_model_epoch = self.epoch
                         print(f"  ---> New best model found at epoch {self.epoch} with val PPC_rel: {self.best_ppc_rel:.4f}")
+
+                elif self.early_stopping == 4:
+                    cur_err_mean = self.all_errs[-1]['QError-val']
+                    if cur_err_mean < self.best_err_mean:
+                        self.best_err_mean = cur_err_mean
+                        self.best_model_epoch = self.epoch
+                        print(f"  ---> New best model found at epoch {self.epoch} with val QError mean: {self.best_err_mean:.4f}")
 
         # self.periodic_eval()
 
