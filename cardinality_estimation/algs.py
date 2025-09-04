@@ -384,7 +384,7 @@ class NN(CardinalityEstimationAlg):
                     curerrs[str(efunc)+"-"+st+"-90p"] = round(p90,4)
                     curerrs[str(efunc)+"-"+st+"-99p"] = round(p99,4)
 
-        if self.early_stopping == 2 or self.early_stopping == 3:
+        if self.early_stopping == 2 or self.early_stopping == 3 or self.early_stopping == 4:
             self.all_errs.append(curerrs)
 
         print("Epoch ", self.epoch, curerrs)
